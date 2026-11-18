@@ -1,0 +1,148 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms" {
+  strategy: "class";
+}
+
+@theme inline {
+  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", Inter, sans-serif;
+  --color-teal-brand: #087f8c;
+  --color-teal-hover: #066b77;
+  --color-teal-deep: #064e5b;
+  --color-teal-surface: #eff8f9;
+  --color-teal-light: #e6f4f5;
+  --color-mint-soft: #e8faf6;
+  --color-mint-accent: #2dd4bf;
+  --color-mint-emerald: #10b981;
+  --color-slate-bg: #f4f8fa;
+  --color-brand: #1d9e75;
+  --color-brand-hover: #178666;
+  --color-brand-soft: #e7f6f1;
+  --color-navy: #10233a;
+  --color-navy-700: #1b334f;
+  --color-ink: #12263a;
+  --color-canvas: #f4f7f6;
+  --color-line: #e3e8e6;
+  --color-muted: #5d6b76;
+  --shadow-btn-glow: 0 10px 25px -5px rgba(8, 127, 140, 0.35);
+  --shadow-float-pill:
+    0 12px 28px -6px rgba(6, 78, 91, 0.25),
+    0 0 0 1px rgba(255, 255, 255, 0.4) inset;
+  --animate-float-slow: floating 6s ease-in-out infinite;
+  --animate-float-delayed: floating 7s ease-in-out 1.5s infinite;
+}
+
+@keyframes floating {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.bg-grid-pattern {
+  background-image: radial-gradient(rgba(8, 127, 140, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.login-scene {
+  animation: login-scene 36s ease-in-out infinite alternate;
+}
+
+.login-glow {
+  animation: login-glow 14s ease-in-out infinite;
+}
+
+.login-glow-late {
+  animation-delay: -7s;
+}
+
+.login-card {
+  animation: login-card-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.login-card-leave {
+  animation: login-card-out 0.42s ease forwards;
+}
+
+.login-motif {
+  animation: login-drift 8.5s ease-in-out infinite;
+}
+
+.login-feature {
+  animation: login-feature-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes login-scene {
+  from {
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  to {
+    transform: scale(1.06) translate3d(-1.5%, -1%, 0);
+  }
+}
+
+@keyframes login-glow {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translate3d(24px, 18px, 0);
+  }
+}
+
+@keyframes login-card-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes login-card-out {
+  to {
+    opacity: 0;
+    transform: translate3d(0, -12px, 0) scale(1.02);
+  }
+}
+
+@keyframes login-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.78;
+  }
+  50% {
+    transform: translate3d(var(--dx, 8px), var(--dy, -14px), 0) scale(1.05);
+    opacity: 1;
+  }
+}
+
+@keyframes login-feature-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-scene,
+  .login-glow,
+  .login-card,
+  .login-card-leave,
+  .login-motif,
+  .login-feature {
+    animation: none;
+  }
+}
