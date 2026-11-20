@@ -1,8 +1,8 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { LoginScreen } from "@/components/login/LoginScreen";
-import { decodeSession, sessionCookieName } from "@/lib/auth";
+import { postLoginPath } from "@/lib/auth/rbac";
+import { getCurrentSession } from "@/lib/auth/session";
 
 export default function Home() {
   return (
@@ -13,8 +13,7 @@ export default function Home() {
 }
 
 async function LoginGate() {
-  const jar = await cookies();
-  const session = decodeSession(jar.get(sessionCookieName)?.value);
-  if (session) redirect("/dashboard");
+  const session = await getCurrentSession();
+  if (session) redirect(postLoginPath(session.role));
   return <LoginScreen />;
 }

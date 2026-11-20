@@ -4,25 +4,25 @@
 }
 
 @theme inline {
-  --font-sans: var(--font-jakarta), "Plus Jakarta Sans", Inter, sans-serif;
-  --color-teal-brand: #087f8c;
-  --color-teal-hover: #066b77;
-  --color-teal-deep: #064e5b;
+  --font-sans: var(--font-inter), Inter, var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
+  --color-teal-brand: #168b83;
+  --color-teal-hover: #13766f;
+  --color-teal-deep: #0b2238;
   --color-teal-surface: #eff8f9;
   --color-teal-light: #e6f4f5;
   --color-mint-soft: #e8faf6;
   --color-mint-accent: #2dd4bf;
   --color-mint-emerald: #10b981;
-  --color-slate-bg: #f4f8fa;
-  --color-brand: #1d9e75;
-  --color-brand-hover: #178666;
-  --color-brand-soft: #e7f6f1;
-  --color-navy: #10233a;
-  --color-navy-700: #1b334f;
-  --color-ink: #12263a;
-  --color-canvas: #f4f7f6;
-  --color-line: #e3e8e6;
-  --color-muted: #5d6b76;
+  --color-slate-bg: #f3f7fa;
+  --color-brand: #168b83;
+  --color-brand-hover: #13766f;
+  --color-brand-soft: #e1f2ef;
+  --color-navy: #102a43;
+  --color-navy-700: #173e5d;
+  --color-ink: #183247;
+  --color-canvas: #f3f7fa;
+  --color-line: #e2eaf0;
+  --color-muted: #718394;
   --shadow-btn-glow: 0 10px 25px -5px rgba(8, 127, 140, 0.35);
   --shadow-float-pill:
     0 12px 28px -6px rgba(6, 78, 91, 0.25),

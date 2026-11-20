@@ -1,132 +1,190 @@
 "use client";
 
-import { ArrowRight, Eye, EyeOff, LoaderCircle, LockKeyhole, Mail, Plus } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
+import { GENERIC_AUTH_ERROR } from "@/lib/auth/constants";
 import { usePasswordVisibility } from "@/hooks/usePasswordVisibility";
-import { ADMIN_ID, ADMIN_NAME, isAdminLogin } from "@/lib/admin-credentials";
-import { writeSessionCookie } from "@/lib/auth";
-import { readLoginCredentials } from "@/lib/login";
+import type { PublicAuthResponse } from "@/lib/auth/types";
 
-const adminIdSchema = z.string().trim().email("Enter a valid admin ID.");
+const identifierSchema = z.string().trim().min(3, "Invalid User ID or Password. Please try again.");
+const passwordSchema = z.string().min(1, "Invalid User ID or Password. Please try again.");
+const mfaSchema = z.string().regex(/^\d{6}$/, "Enter the 6-digit verification code.");
 
 const fieldClassName =
-  "block h-10 w-full rounded-xl border border-white/80 bg-white/80 pr-4 pl-11 text-sm text-ink shadow-sm transition placeholder:text-muted/70 hover:border-[#1D9E75]/40 focus:border-[#1D9E75] focus:bg-white focus:ring-4 focus:ring-[#1D9E75]/15 focus:outline-none";
+  "control block min-h-[42px] w-full rounded-[9px] border border-[#e2eaf0] bg-white px-3 py-[11px] text-sm text-[#183247] outline-none placeholder:text-[#9aa7b1] focus:border-[#168b83] focus:shadow-[0_0_0_3px_#168b8317]";
 
 export function LoginForm() {
   const password = usePasswordVisibility();
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "loading" | "leaving">("idle");
+  const [status, setStatus] = useState<"idle" | "loading">("idle");
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const credentials = readLoginCredentials(event.currentTarget);
-    const parsedId = adminIdSchema.safeParse(credentials.adminId);
-    if (!parsedId.success) {
-      setError(parsedId.error.issues[0]?.message ?? "Enter a valid admin ID.");
-      return;
-    }
-    if (!credentials.password.trim()) {
-      setError("Enter your password.");
-      return;
-    }
-    if (!isAdminLogin(parsedId.data, credentials.password)) {
-      setError("Invalid admin ID or password.");
-      return;
+    const data = new FormData(event.currentTarget);
+    const identifier = String(data.get("identifier") ?? "");
+    const passwordValue = String(data.get("password") ?? "");
+    const mfaCode = String(data.get("mfa-code") ?? "");
+
+    if (!mfaRequired) {
+      const parsedId = identifierSchema.safeParse(identifier);
+      if (!parsedId.success) {
+        setError("Invalid User ID or Password. Please try again.");
+        return;
+      }
+      const parsedPassword = passwordSchema.safeParse(passwordValue);
+      if (!parsedPassword.success) {
+        setError("Invalid User ID or Password. Please try again.");
+        return;
+      }
+    } else {
+      const parsedMfa = mfaSchema.safeParse(mfaCode);
+      if (!parsedMfa.success) {
+        setError(parsedMfa.error.issues[0]?.message ?? "Enter the 6-digit verification code.");
+        return;
+      }
     }
 
     setError(null);
-    const cookieSaved = writeSessionCookie({ name: ADMIN_NAME, email: ADMIN_ID });
-    if (!cookieSaved) {
-      setError("Cookies are blocked in this browser. Enable cookies to sign in.");
-      return;
-    }
-
     setStatus("loading");
-    window.setTimeout(() => {
-      setStatus("leaving");
-      window.setTimeout(() => {
-        window.location.assign("/dashboard");
-      }, 360);
-    }, 500);
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          identifier,
+          password: passwordValue,
+          rememberMe,
+          mfaCode: mfaRequired ? mfaCode : undefined,
+        }),
+      });
+      const result = (await response.json()) as PublicAuthResponse;
+      if (result.mfaRequired) {
+        setMfaRequired(true);
+        setError(result.message ?? "Enter the verification code from your authenticator app.");
+        setStatus("idle");
+        return;
+      }
+      if (!result.ok) {
+        setError(
+          result.message === GENERIC_AUTH_ERROR
+            ? "Invalid User ID or Password. Please try again."
+            : (result.message ?? "Invalid User ID or Password. Please try again."),
+        );
+        setStatus("idle");
+        return;
+      }
+      window.location.assign(result.redirectTo ?? "/home");
+    } catch {
+      setError("Unable to reach the authentication service.");
+      setStatus("idle");
+    }
   }
 
-  const busy = status !== "idle";
+  const busy = status === "loading";
 
   return (
-    <section
-      className={`login-card relative mx-auto w-full max-w-[420px] rounded-[28px] border border-white/70 bg-white/75 p-5 shadow-[0_30px_80px_-24px_rgba(16,35,58,0.55)] ring-1 ring-[#1D9E75]/25 backdrop-blur-xl ${
-        status === "leaving" ? "login-card-leave" : ""
-      }`}
-    >
-      <div className="mb-4 text-center">
-        <div className="mx-auto mb-2 grid h-9 w-9 place-items-center rounded-xl bg-[#1D9E75] text-white shadow-[0_10px_24px_-12px_#1D9E75]">
-          <Plus className="h-4 w-4" aria-hidden="true" />
-        </div>
-        <p className="text-base font-semibold tracking-tight text-ink">PharmaCare</p>
-        <p className="text-[11px] font-medium tracking-wide text-muted uppercase">Pharmacy Management System</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Admin sign-in</h1>
-        <p className="text-sm text-muted">Enter the administrator ID and password.</p>
+    <div className="w-full">
+      <div className="mt-[10px]">
+        <p className="text-[11px] font-extrabold tracking-[0.15em] text-[#168b83] uppercase">Welcome back</p>
+        <h2 className="mt-2.5 text-[29px] leading-none font-bold tracking-[-0.04em] text-[#102a43]">
+          Sign in to your account
+        </h2>
+        <p className="mt-2 text-xs text-[#718394]">Use your administrator credentials to continue.</p>
       </div>
 
-      <form className="space-y-3" onSubmit={handleSubmit} noValidate>
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold tracking-wide text-ink/80 uppercase" htmlFor="admin-id">
-            Admin ID
+      <form className="mt-4" onSubmit={handleSubmit} noValidate>
+        <div className="mt-[17px]">
+          <label className="mb-[7px] block text-xs font-bold text-[#344e62]" htmlFor="identifier">
+            User ID
           </label>
-          <div className="relative">
-            <Mail className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              autoCapitalize="none"
-              autoComplete="username"
-              autoCorrect="off"
-              className={fieldClassName}
-              id="admin-id"
-              name="admin-id"
-              placeholder={ADMIN_ID}
-              spellCheck={false}
-              type="email"
-            />
-          </div>
+          <input
+            autoCapitalize="none"
+            autoComplete="username"
+            autoCorrect="off"
+            className={fieldClassName}
+            id="identifier"
+            name="identifier"
+            placeholder="Enter User ID"
+            spellCheck={false}
+            type="text"
+          />
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-xs font-semibold tracking-wide text-ink/80 uppercase" htmlFor="password">
+        <div className="mt-[17px]">
+          <label className="mb-[7px] block text-xs font-bold text-[#344e62]" htmlFor="password">
             Password
           </label>
           <div className="relative">
-            <LockKeyhole className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted" />
             <input
               autoComplete="current-password"
-              className={`${fieldClassName} pr-11`}
+              className={`${fieldClassName} pr-16`}
               id="password"
               name="password"
-              placeholder="Enter your password"
+              placeholder="Enter password"
               type={password.inputType}
             />
             <button
-              aria-label={password.visible ? "Hide password" : "Show password"}
-              className="absolute inset-y-0 right-0 flex items-center pr-3.5 text-muted transition hover:text-[#178666]"
+              className="absolute top-[7px] right-2 border-0 bg-transparent px-[7px] py-[7px] text-[11px] font-extrabold tracking-wide text-[#168b83] uppercase"
               onClick={password.toggle}
               type="button"
             >
-              {password.visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              {password.visible ? "Hide" : "Show"}
             </button>
           </div>
         </div>
 
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {mfaRequired ? (
+          <div className="mt-[17px]">
+            <label className="mb-[7px] block text-xs font-bold text-[#344e62]" htmlFor="mfa-code">
+              Authenticator code
+            </label>
+            <input
+              autoComplete="one-time-code"
+              className={fieldClassName}
+              id="mfa-code"
+              inputMode="numeric"
+              name="mfa-code"
+              placeholder="6-digit code"
+            />
+          </div>
+        ) : null}
+
+        <div className="mt-2.5 mb-[19px] flex items-center justify-between text-[11px] text-[#718394]">
+          <label className="flex items-center gap-[7px]">
+            <input
+              checked={rememberMe}
+              className="h-3.5 w-3.5 rounded border-[#e2eaf0] text-[#168b83] focus:ring-[#168b83]/30"
+              onChange={(event) => setRememberMe(event.target.checked)}
+              type="checkbox"
+            />
+            Remember me
+          </label>
+          <Link className="text-[#168b83] hover:underline" href="/forgot-password">
+            Forgot password?
+          </Link>
+        </div>
 
         <button
-          className="group flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#1D9E75] to-[#1A6F8A] px-4 text-sm font-semibold text-white shadow-[0_14px_30px_-12px_rgba(26,111,138,0.9)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_34px_-12px_rgba(26,111,138,0.85)] focus:ring-4 focus:ring-[#1D9E75]/30 focus:outline-none active:translate-y-0 active:scale-[0.98] disabled:cursor-wait disabled:opacity-80"
+          className="w-full rounded-[9px] bg-[#102a43] px-[15px] py-[13px] text-xs font-bold text-white shadow-[0_5px_13px_#102a4320] transition hover:-translate-y-px hover:bg-[#173e5d] focus:ring-4 focus:ring-[#102a43]/20 focus:outline-none disabled:cursor-wait disabled:opacity-80"
           disabled={busy}
           type="submit"
         >
-          {busy ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
-          <span>{busy ? "Signing in" : "Sign In"}</span>
-          {busy ? null : <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />}
+          <span className="inline-flex items-center justify-center gap-2">
+            {busy ? <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+            {busy ? "Signing in" : "Sign In to Master Admin"}
+          </span>
         </button>
+
+        {error ? (
+          <p className="mt-3 rounded-lg bg-[#fff0ef] px-2.5 py-2.5 text-xs text-[#a52e28]" role="alert">
+            {error}
+          </p>
+        ) : null}
       </form>
-    </section>
+    </div>
   );
 }

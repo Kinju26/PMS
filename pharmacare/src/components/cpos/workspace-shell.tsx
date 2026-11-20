@@ -23,7 +23,7 @@ import {
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { quickSearchLinks } from "@/components/cpos/navigation";
 import { Sidebar } from "@/components/cpos/sidebar";
-import { clearSessionCookie, initials, type SessionUser } from "@/lib/auth";
+import { initials, type SessionUser } from "@/lib/auth";
 import { demoHeaderNotifications } from "@/lib/cpos/dashboard-demo-data";
 import { CposProvider, useCpos } from "@/lib/cpos/store";
 import { SessionProvider, useSession } from "@/lib/session";
@@ -117,8 +117,9 @@ function Frame({ children }: { children: React.ReactNode }) {
   }, [searchQuery]);
 
   function logout() {
-    clearSessionCookie();
-    window.location.assign("/");
+    void fetch("/api/auth/logout", { method: "POST" }).finally(() => {
+      window.location.assign("/");
+    });
   }
 
   function markAllRead() {

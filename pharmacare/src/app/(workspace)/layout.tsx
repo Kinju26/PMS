@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { WorkspaceShell } from "@/components/cpos/workspace-shell";
-import { decodeSession, sessionCookieName } from "@/lib/auth";
+import { roleHasPermission } from "@/lib/auth/rbac";
+import { getCurrentSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = {
   title: {
@@ -21,8 +21,8 @@ export default function WorkspaceLayout({ children }: { children: ReactNode }) {
 }
 
 async function SignedInShell({ children }: { children: ReactNode }) {
-  const jar = await cookies();
-  const session = decodeSession(jar.get(sessionCookieName)?.value);
+  const session = await getCurrentSession();
   if (!session) redirect("/");
+  if (!roleHasPermission(session.role, "access_workspace")) redirect("/home");
   return <WorkspaceShell session={session}>{children}</WorkspaceShell>;
 }
