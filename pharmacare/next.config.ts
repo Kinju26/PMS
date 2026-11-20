@@ -1,5 +1,9 @@
 import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+
+const projectRoot = path.dirname(fileURLToPath(import.meta.url));
 
 function getLocalNetworkIps(): string[] {
   try {
@@ -26,7 +30,9 @@ const nextConfig: NextConfig = {
   ],
   cacheComponents: true,
   partialPrefetching: true,
+  serverExternalPackages: ["@prisma/client", "prisma"],
   turbopack: {
+    root: projectRoot,
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

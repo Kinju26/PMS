@@ -36,17 +36,17 @@ export const ROLE_LABELS: Record<AuthRole, string> = {
 };
 
 export const ROLE_HOME: Record<AuthRole, string> = {
-  MASTER_ADMIN: "/home",
-  PHARMACY_OWNER: "/home",
-  PHARMACY_MANAGER: "/home",
-  PHARMACIST: "/home",
-  PHARMACY_TECHNICIAN: "/home",
-  PHARMACY_ASSISTANT: "/home",
-  DATA_ENTRY_STAFF: "/home",
-  INVENTORY_MANAGER: "/home",
-  DELIVERY_STAFF: "/home",
-  SYSTEM_ADMINISTRATOR: "/home",
-  AUDITOR: "/home",
+  MASTER_ADMIN: "/dashboard",
+  PHARMACY_OWNER: "/dashboard",
+  PHARMACY_MANAGER: "/dashboard",
+  PHARMACIST: "/dashboard",
+  PHARMACY_TECHNICIAN: "/dashboard",
+  PHARMACY_ASSISTANT: "/dashboard",
+  DATA_ENTRY_STAFF: "/dashboard",
+  INVENTORY_MANAGER: "/dashboard",
+  DELIVERY_STAFF: "/dashboard",
+  SYSTEM_ADMINISTRATOR: "/dashboard",
+  AUDITOR: "/dashboard",
   PATIENT: "/home",
   CUSTOMER: "/home",
 };

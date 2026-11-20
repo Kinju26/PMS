@@ -1,17 +1,9 @@
 "use server";
 
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { authenticateWithMfa, authenticateWithPassword } from "@/lib/auth/authenticate";
+import { loginWithDemoCredentials } from "@/lib/auth/demo-auth";
 import type { PublicAuthResponse } from "@/lib/auth/types";
 import { destroySession } from "@/lib/auth/session";
-
-function requestMeta(headerList: Headers) {
-  const forwarded = headerList.get("x-forwarded-for");
-  const ip = forwarded?.split(",")[0]?.trim() || headerList.get("x-real-ip") || "unknown";
-  const userAgent = headerList.get("user-agent") ?? "unknown";
-  return { ip, userAgent };
-}
 
 export async function loginAction(input: {
   identifier: string;
@@ -20,16 +12,13 @@ export async function loginAction(input: {
   mfaCode?: string;
 }): Promise<PublicAuthResponse> {
   try {
-    const { ip, userAgent } = requestMeta(await headers());
     if (input.mfaCode) {
-      return await authenticateWithMfa({ code: input.mfaCode, ip, userAgent });
+      return { ok: false, message: "Invalid User ID or Password. Please try again." };
     }
-    return await authenticateWithPassword({
+    return await loginWithDemoCredentials({
       identifier: input.identifier,
       password: input.password,
       rememberMe: input.rememberMe,
-      ip,
-      userAgent,
     });
   } catch (error) {
     console.error("loginAction failed", error);

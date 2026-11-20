@@ -1,11 +1,20 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { IDLE_TTL_SECONDS, REMEMBER_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth/constants";
-import { randomToken, sha256Hex } from "@/lib/auth/crypto";
+import { REMEMBER_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth/constants";
+import { hmacSign, safeEqual } from "@/lib/auth/crypto";
 import { permissionsForRole } from "@/lib/auth/rbac";
 import { isAuthRole } from "@/lib/auth/roles";
 import type { SessionUser } from "@/lib/auth/types";
-import { prisma } from "@/lib/db";
+
+type SignedSessionPayload = {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  role: string;
+  exp: number;
+  rememberMe: boolean;
+};
 
 function cookieOptions(maxAge: number) {
   return {
@@ -17,80 +26,99 @@ function cookieOptions(maxAge: number) {
   };
 }
 
-export async function createSession(userId: string, rememberMe: boolean, ip: string, userAgent: string) {
-  const token = randomToken(32);
+function signingSecret() {
+  return process.env.AUTH_SECRET?.trim() || process.env.DEMO_ADMIN_PASSWORD || "";
+}
+
+function encodeSession(payload: SignedSessionPayload, secret: string) {
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${body}.${hmacSign(body, secret)}`;
+}
+
+function decodeSession(token: string, secret: string): SignedSessionPayload | null {
+  const separator = token.lastIndexOf(".");
+  if (separator <= 0) return null;
+  const body = token.slice(0, separator);
+  const signature = token.slice(separator + 1);
+  if (!body || !signature) return null;
+  const expected = hmacSign(body, secret);
+  if (!safeEqual(signature, expected)) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as SignedSessionPayload;
+    if (!parsed.id || !parsed.email || !parsed.role || !parsed.exp) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+export async function issueSignedSession(user: SessionUser, rememberMe: boolean) {
+  const secret = signingSecret();
+  if (!secret) {
+    throw new Error("Missing AUTH_SECRET for session signing.");
+  }
   const ttl = rememberMe ? REMEMBER_TTL_SECONDS : SESSION_TTL_SECONDS;
-  const expiresAt = new Date(Date.now() + ttl * 1000);
-  await prisma.session.create({
-    data: {
-      tokenHash: sha256Hex(token),
-      userId,
+  const token = encodeSession(
+    {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      role: user.role,
       rememberMe,
-      expiresAt,
-      lastSeenAt: new Date(),
-      ip,
-      userAgent,
+      exp: Date.now() + ttl * 1000,
     },
-  });
+    secret,
+  );
   const jar = await cookies();
   jar.set(SESSION_COOKIE, token, cookieOptions(ttl));
-  return token;
+}
+
+export async function createSession(userId: string, rememberMe: boolean, _ip: string, _userAgent: string) {
+  await issueSignedSession(
+    {
+      id: userId,
+      name: "System Administrator",
+      email: process.env.DEMO_ADMIN_USER_ID?.trim() || "admin@cpos.local",
+      username: "admin",
+      role: "SYSTEM_ADMINISTRATOR",
+      permissions: permissionsForRole("SYSTEM_ADMINISTRATOR"),
+    },
+    rememberMe,
+  );
+  return SESSION_COOKIE;
 }
 
 export async function destroySession() {
   const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value;
-  if (token) {
-    await prisma.session.deleteMany({ where: { tokenHash: sha256Hex(token) } });
-  }
   jar.set(SESSION_COOKIE, "", { ...cookieOptions(0), maxAge: 0 });
 }
 
 export async function getCurrentSession(): Promise<SessionUser | null> {
+  const secret = signingSecret();
+  if (!secret) return null;
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (!token) return null;
 
-  const record = await prisma.session.findUnique({
-    where: { tokenHash: sha256Hex(token) },
-    include: { user: true },
-  });
-  if (!record) return null;
-
-  const now = Date.now();
-  if (record.expiresAt.getTime() <= now) {
-    await prisma.session.delete({ where: { id: record.id } });
+  const payload = decodeSession(token, secret);
+  if (!payload) return null;
+  if (payload.exp <= Date.now()) {
+    await destroySession();
     return null;
   }
-
-  const idleLimit = (record.rememberMe ? REMEMBER_TTL_SECONDS : IDLE_TTL_SECONDS) * 1000;
-  if (now - record.lastSeenAt.getTime() > idleLimit) {
-    await prisma.session.delete({ where: { id: record.id } });
+  if (!isAuthRole(payload.role)) {
+    await destroySession();
     return null;
   }
-
-  if (record.user.status !== "ACTIVE") {
-    await prisma.session.delete({ where: { id: record.id } });
-    return null;
-  }
-
-  if (!isAuthRole(record.user.role)) {
-    await prisma.session.delete({ where: { id: record.id } });
-    return null;
-  }
-
-  await prisma.session.update({
-    where: { id: record.id },
-    data: { lastSeenAt: new Date() },
-  });
 
   return {
-    id: record.user.id,
-    name: record.user.name,
-    email: record.user.email,
-    username: record.user.username,
-    role: record.user.role,
-    permissions: permissionsForRole(record.user.role),
+    id: payload.id,
+    name: payload.name,
+    email: payload.email,
+    username: payload.username,
+    role: payload.role,
+    permissions: permissionsForRole(payload.role),
   };
 }
 

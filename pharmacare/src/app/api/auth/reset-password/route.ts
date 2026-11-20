@@ -1,4 +1,4 @@
-import { resetPasswordWithToken } from "@/lib/auth/authenticate";
+import { isDemoAuthEnabled } from "@/lib/auth/demo-auth";
 import { z } from "zod";
 
 const schema = z.object({
@@ -13,10 +13,14 @@ export async function POST(request: Request) {
   } catch {
     return Response.json({ ok: false, message: "Invalid request." }, { status: 400 });
   }
+  if (isDemoAuthEnabled()) {
+    return Response.json({ ok: false, message: "Password reset is unavailable in demo sign-in." }, { status: 400 });
+  }
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
     return Response.json({ ok: false, message: "Enter a new password of at least 10 characters." }, { status: 400 });
   }
+  const { resetPasswordWithToken } = await import("@/lib/auth/authenticate");
   const result = await resetPasswordWithToken(parsed.data.token, parsed.data.password);
   return Response.json(result, { status: result.ok ? 200 : 400 });
 }

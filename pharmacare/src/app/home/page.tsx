@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { signOutAction } from "@/lib/auth/actions";
+import { postLoginPath, roleHasPermission } from "@/lib/auth/rbac";
 import { getCurrentSession } from "@/lib/auth/session";
 
 export default function SignedInHome() {
@@ -14,6 +15,9 @@ export default function SignedInHome() {
 async function SignedInHomeContent() {
   const session = await getCurrentSession();
   if (!session) redirect("/");
+  if (roleHasPermission(session.role, "access_workspace")) {
+    redirect(postLoginPath(session.role));
+  }
 
   return (
     <main className="flex min-h-dvh items-center justify-center bg-[#F4F7F6] px-4">

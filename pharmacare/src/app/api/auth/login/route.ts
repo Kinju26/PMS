@@ -1,5 +1,5 @@
-import { authenticateWithMfa, authenticateWithPassword } from "@/lib/auth/authenticate";
-import { clientIp, userAgent } from "@/lib/auth/request";
+import { loginWithDemoCredentials } from "@/lib/auth/demo-auth";
+import { clientIp } from "@/lib/auth/request";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -41,20 +41,12 @@ export async function POST(request: Request) {
       return Response.json({ ok: false, message: "Enter your email or username and password." }, { status: 400 });
     }
 
-    const ua = userAgent(request);
-    if (parsed.data.mfaCode) {
-      const result = await authenticateWithMfa({ code: parsed.data.mfaCode, ip, userAgent: ua });
-      return Response.json(result, { status: result.ok || result.mfaRequired ? 200 : 401 });
-    }
-
-    const result = await authenticateWithPassword({
+    const result = await loginWithDemoCredentials({
       identifier: parsed.data.identifier,
       password: parsed.data.password,
       rememberMe: Boolean(parsed.data.rememberMe),
-      ip,
-      userAgent: ua,
     });
-    return Response.json(result, { status: result.ok || result.mfaRequired ? 200 : 401 });
+    return Response.json(result, { status: result.ok ? 200 : 401 });
   } catch (error) {
     console.error("POST /api/auth/login failed", error);
     return Response.json({ ok: false, message: "Unable to sign in right now. Please try again." }, { status: 500 });
