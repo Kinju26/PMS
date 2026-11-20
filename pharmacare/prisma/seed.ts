@@ -12,8 +12,11 @@ type SeedUser = {
   status: "ACTIVE" | "INACTIVE" | "PENDING_ACTIVATION";
 };
 
-const users: SeedUser[] = [
-  { email: "admin@gmail.com", username: "admin", name: "Super Admin", role: "MASTER_ADMIN", status: "ACTIVE" },
+const MASTER_USERNAME = "admin";
+const MASTER_EMAIL = "admin@cpos.local";
+const MASTER_ROLE: AuthRole = "SUPER_ADMIN";
+
+const staffUsers: SeedUser[] = [
   { email: "owner@cpos.local", username: "owner", name: "Avery Lang", role: "PHARMACY_OWNER", status: "ACTIVE" },
   { email: "manager@cpos.local", username: "manager", name: "Jordan Reid", role: "PHARMACY_MANAGER", status: "ACTIVE" },
   { email: "pharmacist@cpos.local", username: "pharmacist", name: "Amrita Shah", role: "PHARMACIST", status: "ACTIVE" },
@@ -30,19 +33,53 @@ const users: SeedUser[] = [
   { email: "pending@cpos.local", username: "pending", name: "Pending Staff", role: "PHARMACY_ASSISTANT", status: "PENDING_ACTIVATION" },
 ];
 
+async function upsertMasterAdmin(passwordHash: string) {
+  const byUsername = await prisma.user.findUnique({ where: { username: MASTER_USERNAME } });
+  const byLegacyEmail = await prisma.user.findUnique({ where: { email: "admin@gmail.com" } });
+  const byEmail = await prisma.user.findUnique({ where: { email: MASTER_EMAIL } });
+  const existing = byUsername ?? byEmail ?? byLegacyEmail;
+
+  const data = {
+    email: MASTER_EMAIL,
+    username: MASTER_USERNAME,
+    name: "Super Admin",
+    role: MASTER_ROLE,
+    status: "ACTIVE" as const,
+    passwordHash,
+    failedLoginCount: 0,
+    lockedUntil: null,
+  };
+
+  if (existing) {
+    await prisma.user.update({
+      where: { id: existing.id },
+      data,
+    });
+  } else {
+    await prisma.user.create({ data });
+  }
+
+  await prisma.user.updateMany({
+    where: {
+      username: { not: MASTER_USERNAME },
+      role: { in: ["MASTER_ADMIN", "SUPER_ADMIN"] },
+    },
+    data: { role: "SYSTEM_ADMINISTRATOR" },
+  });
+}
+
 async function main() {
   const password = process.env.SEED_PASSWORD;
   if (!password || password.length < 10) {
     throw new Error("Set SEED_PASSWORD in .env (min 10 characters) before seeding registered users.");
   }
   const passwordHash = await bcrypt.hash(password, 12);
-  const adminBootstrap = process.env.ADMIN_PASSWORD ?? process.env.DEMO_ADMIN_PASSWORD ?? "";
-  const adminPasswordHash = adminBootstrap
-    ? await bcrypt.hash(adminBootstrap, 12)
-    : passwordHash;
+  const masterPassword = process.env.ADMIN_PASSWORD ?? process.env.DEMO_ADMIN_PASSWORD ?? "admin";
+  const masterPasswordHash = await bcrypt.hash(masterPassword, 12);
 
-  for (const user of users) {
-    const hash = user.email === "admin@gmail.com" ? adminPasswordHash : passwordHash;
+  await upsertMasterAdmin(masterPasswordHash);
+
+  for (const user of staffUsers) {
     await prisma.user.upsert({
       where: { email: user.email },
       update: {
@@ -50,13 +87,13 @@ async function main() {
         name: user.name,
         role: user.role,
         status: user.status,
-        passwordHash: hash,
+        passwordHash: passwordHash,
         failedLoginCount: 0,
         lockedUntil: null,
       },
       create: {
         ...user,
-        passwordHash: hash,
+        passwordHash,
       },
     });
   }

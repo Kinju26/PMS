@@ -12,6 +12,10 @@ import { permissionsForRole, postLoginPath } from "@/lib/auth/rbac";
 import { issueSignedSession } from "@/lib/auth/session";
 import type { PublicAuthResponse, SessionUser } from "@/lib/auth/types";
 
+const MASTER_USERNAME = "admin";
+const MASTER_PASSWORD = "admin";
+const MASTER_ROLE = "SUPER_ADMIN" as const;
+
 type CredentialVault = {
   hash: string;
   mustChange: boolean;
@@ -33,12 +37,11 @@ function cookieOptions(maxAge: number) {
 }
 
 function expectedUserId() {
-  return (process.env.ADMIN_USER_ID ?? process.env.DEMO_ADMIN_USER_ID ?? "").trim();
+  return (process.env.ADMIN_USER_ID ?? process.env.DEMO_ADMIN_USER_ID ?? MASTER_USERNAME).trim() || MASTER_USERNAME;
 }
 
-function superAdminUser(mustChangePassword: boolean): SessionUser | null {
+function superAdminUser(): SessionUser {
   const identifier = expectedUserId();
-  if (!identifier) return null;
   const email = identifier.includes("@") ? identifier.toLowerCase() : `${identifier.toLowerCase()}@cpos.local`;
   const username = identifier.includes("@") ? (identifier.split("@")[0] ?? identifier) : identifier;
   return {
@@ -46,9 +49,9 @@ function superAdminUser(mustChangePassword: boolean): SessionUser | null {
     name: "Super Admin",
     email,
     username,
-    role: "MASTER_ADMIN",
-    permissions: permissionsForRole("MASTER_ADMIN"),
-    mustChangePassword,
+    role: MASTER_ROLE,
+    permissions: permissionsForRole(MASTER_ROLE),
+    mustChangePassword: false,
   };
 }
 
@@ -73,12 +76,9 @@ function decodeVault(token: string, secret: string): CredentialVault | null {
   }
 }
 
-async function readVault(): Promise<CredentialVault | null> {
-  const secret = signingSecret();
-  if (!secret) return null;
-  const token = (await cookies()).get(CREDENTIAL_COOKIE)?.value;
-  if (!token) return null;
-  return decodeVault(token, secret);
+async function clearCredentialVault() {
+  const jar = await cookies();
+  jar.set(CREDENTIAL_COOKIE, "", { ...cookieOptions(0), maxAge: 0 });
 }
 
 async function writeVault(vault: CredentialVault) {
@@ -93,9 +93,18 @@ async function writeVault(vault: CredentialVault) {
 async function bootstrapHash() {
   const configured = process.env.ADMIN_PASSWORD_HASH?.trim();
   if (configured) return configured;
-  const bootstrap = process.env.ADMIN_PASSWORD ?? process.env.DEMO_ADMIN_PASSWORD ?? "";
-  if (!bootstrap) return "";
+  const bootstrap = process.env.ADMIN_PASSWORD ?? process.env.DEMO_ADMIN_PASSWORD ?? MASTER_PASSWORD;
   return hashPassword(bootstrap);
+}
+
+async function currentPasswordHash() {
+  const secret = signingSecret();
+  const token = (await cookies()).get(CREDENTIAL_COOKIE)?.value;
+  if (secret && token) {
+    const vault = decodeVault(token, secret);
+    if (vault?.hash) return vault.hash;
+  }
+  return bootstrapHash();
 }
 
 export async function loginWithSuperAdmin(input: {
@@ -104,37 +113,23 @@ export async function loginWithSuperAdmin(input: {
   rememberMe: boolean;
 }): Promise<PublicAuthResponse> {
   const expectedUser = expectedUserId();
-  const user = superAdminUser(false);
-  if (!expectedUser || !user) {
-    return { ok: false, message: "Sign-in is temporarily unavailable." };
-  }
-
   const identifier = input.identifier.trim();
   if (!digestEqual(identifier.toLowerCase(), expectedUser.toLowerCase())) {
     return { ok: false, message: GENERIC_AUTH_ERROR };
   }
 
-  const vault = await readVault();
-  const hash = vault?.hash || (await bootstrapHash());
-  if (!hash) {
-    return { ok: false, message: "Sign-in is temporarily unavailable." };
-  }
-
+  const hash = await bootstrapHash();
   const passwordOk = await verifyPassword(input.password, hash);
   if (!passwordOk) {
     return { ok: false, message: GENERIC_AUTH_ERROR };
   }
 
-  const mustChangePassword = vault ? vault.mustChange : true;
-  const signedIn = superAdminUser(mustChangePassword);
-  if (!signedIn) {
-    return { ok: false, message: "Sign-in is temporarily unavailable." };
-  }
-
+  await clearCredentialVault();
+  const signedIn = superAdminUser();
   await issueSignedSession(signedIn, input.rememberMe);
   return {
     ok: true,
-    redirectTo: mustChangePassword ? "/settings/security" : postLoginPath(signedIn.role),
+    redirectTo: postLoginPath(signedIn.role),
   };
 }
 
@@ -143,15 +138,7 @@ export async function changeSuperAdminPassword(input: {
   newPassword: string;
 }): Promise<PublicAuthResponse> {
   const expectedUser = expectedUserId();
-  if (!expectedUser) {
-    return { ok: false, message: "Unable to update password right now." };
-  }
-
-  const vault = await readVault();
-  const hash = vault?.hash || (await bootstrapHash());
-  if (!hash) {
-    return { ok: false, message: "Unable to update password right now." };
-  }
+  const hash = await currentPasswordHash();
 
   const currentOk = await verifyPassword(input.currentPassword, hash);
   if (!currentOk) {
@@ -172,10 +159,6 @@ export async function changeSuperAdminPassword(input: {
     userId: expectedUser.toLowerCase(),
   });
 
-  const user = superAdminUser(false);
-  if (user) {
-    await issueSignedSession(user, false);
-  }
-
-  return { ok: true, message: "Password updated.", redirectTo: postLoginPath("MASTER_ADMIN") };
+  await issueSignedSession(superAdminUser(), false);
+  return { ok: true, message: "Password updated.", redirectTo: postLoginPath(MASTER_ROLE) };
 }

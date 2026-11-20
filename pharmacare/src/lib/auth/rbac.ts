@@ -32,6 +32,7 @@ const ALL_STAFF: Permission[] = [
 
 const ROLE_PERMISSIONS: Record<AuthRole, readonly Permission[]> = {
   MASTER_ADMIN: PERMISSIONS,
+  SUPER_ADMIN: PERMISSIONS,
   PHARMACY_OWNER: [
     ...ALL_STAFF,
     "create_patient",
@@ -103,6 +104,7 @@ const ROLE_PERMISSIONS: Record<AuthRole, readonly Permission[]> = {
 export function permissionsForRole(role: AuthRole): readonly Permission[] {
   switch (role) {
     case "MASTER_ADMIN":
+    case "SUPER_ADMIN":
     case "PHARMACY_OWNER":
     case "PHARMACY_MANAGER":
     case "PHARMACIST":

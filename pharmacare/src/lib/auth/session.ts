@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import { REMEMBER_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth/constants";
 import { hmacSign, safeEqual } from "@/lib/auth/crypto";
 import { permissionsForRole } from "@/lib/auth/rbac";
@@ -83,9 +84,9 @@ export async function createSession(userId: string, rememberMe: boolean, _ip: st
       name: "Super Admin",
       email: process.env.ADMIN_USER_ID?.trim() || process.env.DEMO_ADMIN_USER_ID?.trim() || "admin@cpos.local",
       username: "admin",
-      role: "MASTER_ADMIN",
-      permissions: permissionsForRole("MASTER_ADMIN"),
-      mustChangePassword: true,
+      role: "SUPER_ADMIN",
+      permissions: permissionsForRole("SUPER_ADMIN"),
+      mustChangePassword: false,
     },
     rememberMe,
   );
@@ -98,6 +99,7 @@ export async function destroySession() {
 }
 
 export async function getCurrentSession(): Promise<SessionUser | null> {
+  await connection();
   const secret = signingSecret();
   if (!secret) return null;
   const jar = await cookies();

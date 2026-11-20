@@ -1,5 +1,6 @@
 export const AUTH_ROLES = [
   "MASTER_ADMIN",
+  "SUPER_ADMIN",
   "PHARMACY_OWNER",
   "PHARMACY_MANAGER",
   "PHARMACIST",
@@ -21,6 +22,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 
 export const ROLE_LABELS: Record<AuthRole, string> = {
   MASTER_ADMIN: "Pharmacy Owner / Master Admin",
+  SUPER_ADMIN: "Super Admin",
   PHARMACY_OWNER: "Pharmacy Owner",
   PHARMACY_MANAGER: "Pharmacy Manager",
   PHARMACIST: "Pharmacist",
@@ -37,6 +39,7 @@ export const ROLE_LABELS: Record<AuthRole, string> = {
 
 export const ROLE_HOME: Record<AuthRole, string> = {
   MASTER_ADMIN: "/dashboard",
+  SUPER_ADMIN: "/dashboard",
   PHARMACY_OWNER: "/dashboard",
   PHARMACY_MANAGER: "/dashboard",
   PHARMACIST: "/dashboard",
@@ -58,6 +61,7 @@ export function isAuthRole(value: string): value is AuthRole {
 export function homeForRole(role: AuthRole) {
   switch (role) {
     case "MASTER_ADMIN":
+    case "SUPER_ADMIN":
     case "PHARMACY_OWNER":
     case "PHARMACY_MANAGER":
     case "PHARMACIST":
