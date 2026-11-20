@@ -4,9 +4,9 @@ import { LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { z } from "zod";
+import { loginAction } from "@/lib/auth/actions";
 import { GENERIC_AUTH_ERROR } from "@/lib/auth/constants";
 import { usePasswordVisibility } from "@/hooks/usePasswordVisibility";
-import type { PublicAuthResponse } from "@/lib/auth/types";
 
 const identifierSchema = z.string().trim().min(3, "Invalid User ID or Password. Please try again.");
 const passwordSchema = z.string().min(1, "Invalid User ID or Password. Please try again.");
@@ -51,17 +51,12 @@ export function LoginForm() {
     setError(null);
     setStatus("loading");
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          identifier,
-          password: passwordValue,
-          rememberMe,
-          mfaCode: mfaRequired ? mfaCode : undefined,
-        }),
+      const result = await loginAction({
+        identifier,
+        password: passwordValue,
+        rememberMe,
+        mfaCode: mfaRequired ? mfaCode : undefined,
       });
-      const result = (await response.json()) as PublicAuthResponse;
       if (result.mfaRequired) {
         setMfaRequired(true);
         setError(result.message ?? "Enter the verification code from your authenticator app.");
@@ -79,7 +74,7 @@ export function LoginForm() {
       }
       window.location.assign(result.redirectTo ?? "/home");
     } catch {
-      setError("Unable to reach the authentication service.");
+      setError("Unable to sign in right now. Please try again.");
       setStatus("idle");
     }
   }

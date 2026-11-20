@@ -1,3 +1,4 @@
+import "server-only";
 import {
   GENERIC_AUTH_ERROR,
   LOCKOUT_MINUTES,

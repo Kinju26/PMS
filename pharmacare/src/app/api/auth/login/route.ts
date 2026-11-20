@@ -23,35 +23,40 @@ function tooManyFromIp(ip: string) {
 }
 
 export async function POST(request: Request) {
-  const ip = clientIp(request);
-  if (tooManyFromIp(ip)) {
-    return Response.json({ ok: false, message: "Too many sign-in attempts. Try again later." }, { status: 429 });
-  }
-
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return Response.json({ ok: false, message: "Invalid request." }, { status: 400 });
-  }
+    const ip = clientIp(request);
+    if (process.env.NODE_ENV === "production" && tooManyFromIp(ip)) {
+      return Response.json({ ok: false, message: "Too many sign-in attempts. Try again later." }, { status: 429 });
+    }
 
-  const parsed = loginSchema.safeParse(body);
-  if (!parsed.success) {
-    return Response.json({ ok: false, message: "Enter your email or username and password." }, { status: 400 });
-  }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ ok: false, message: "Invalid request." }, { status: 400 });
+    }
 
-  const ua = userAgent(request);
-  if (parsed.data.mfaCode) {
-    const result = await authenticateWithMfa({ code: parsed.data.mfaCode, ip, userAgent: ua });
+    const parsed = loginSchema.safeParse(body);
+    if (!parsed.success) {
+      return Response.json({ ok: false, message: "Enter your email or username and password." }, { status: 400 });
+    }
+
+    const ua = userAgent(request);
+    if (parsed.data.mfaCode) {
+      const result = await authenticateWithMfa({ code: parsed.data.mfaCode, ip, userAgent: ua });
+      return Response.json(result, { status: result.ok || result.mfaRequired ? 200 : 401 });
+    }
+
+    const result = await authenticateWithPassword({
+      identifier: parsed.data.identifier,
+      password: parsed.data.password,
+      rememberMe: Boolean(parsed.data.rememberMe),
+      ip,
+      userAgent: ua,
+    });
     return Response.json(result, { status: result.ok || result.mfaRequired ? 200 : 401 });
+  } catch (error) {
+    console.error("POST /api/auth/login failed", error);
+    return Response.json({ ok: false, message: "Unable to sign in right now. Please try again." }, { status: 500 });
   }
-
-  const result = await authenticateWithPassword({
-    identifier: parsed.data.identifier,
-    password: parsed.data.password,
-    rememberMe: Boolean(parsed.data.rememberMe),
-    ip,
-    userAgent: ua,
-  });
-  return Response.json(result, { status: result.ok || result.mfaRequired ? 200 : 401 });
 }

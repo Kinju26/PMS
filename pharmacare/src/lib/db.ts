@@ -1,3 +1,4 @@
+import "server-only";
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
@@ -11,3 +12,8 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma;
 }
+
+void prisma
+  .$queryRawUnsafe("PRAGMA journal_mode=WAL;")
+  .then(() => prisma.$queryRawUnsafe("PRAGMA busy_timeout=5000;"))
+  .catch(() => undefined);

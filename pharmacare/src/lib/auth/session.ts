@@ -1,3 +1,4 @@
+import "server-only";
 import { cookies } from "next/headers";
 import { IDLE_TTL_SECONDS, REMEMBER_TTL_SECONDS, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth/constants";
 import { randomToken, sha256Hex } from "@/lib/auth/crypto";
