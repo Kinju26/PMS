@@ -4,8 +4,7 @@ export function readLoginCredentials(form: HTMLFormElement): LoginCredentials {
   const data = new FormData(form);
 
   return {
-    email: String(data.get("email") ?? ""),
+    adminId: String(data.get("admin-id") ?? ""),
     password: String(data.get("password") ?? ""),
-    rememberWorkstation: data.get("remember-me") === "on",
   };
 }

@@ -1,5 +1,4 @@
 export type LoginCredentials = {
-  email: string;
+  adminId: string;
   password: string;
-  rememberWorkstation: boolean;
 };
