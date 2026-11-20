@@ -211,6 +211,15 @@ export const sidebarSections: SidebarSection[] = [
       {
         kind: "item",
         item: {
+          href: "/settings/security",
+          label: "Admin Security",
+          icon: KeyRound,
+          keywords: ["password", "security", "super admin", "credentials"],
+        },
+      },
+      {
+        kind: "item",
+        item: {
           href: "/support",
           label: "Support",
           icon: HelpCircle,

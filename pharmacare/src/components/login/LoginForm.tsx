@@ -91,7 +91,7 @@ export function LoginForm() {
         <p className="mt-2 text-xs text-[#718394]">Use your administrator credentials to continue.</p>
       </div>
 
-      <form className="mt-4" onSubmit={handleSubmit} noValidate>
+      <form className="mt-4" method="post" action="/" onSubmit={handleSubmit} noValidate>
         <div className="mt-[17px]">
           <label className="mb-[7px] block text-xs font-bold text-[#344e62]" htmlFor="identifier">
             User ID

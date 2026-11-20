@@ -13,7 +13,7 @@ type SeedUser = {
 };
 
 const users: SeedUser[] = [
-  { email: "admin@gmail.com", username: "admin", name: "System Administrator", role: "SYSTEM_ADMINISTRATOR", status: "ACTIVE" },
+  { email: "admin@gmail.com", username: "admin", name: "Super Admin", role: "MASTER_ADMIN", status: "ACTIVE" },
   { email: "owner@cpos.local", username: "owner", name: "Avery Lang", role: "PHARMACY_OWNER", status: "ACTIVE" },
   { email: "manager@cpos.local", username: "manager", name: "Jordan Reid", role: "PHARMACY_MANAGER", status: "ACTIVE" },
   { email: "pharmacist@cpos.local", username: "pharmacist", name: "Amrita Shah", role: "PHARMACIST", status: "ACTIVE" },
@@ -36,7 +36,10 @@ async function main() {
     throw new Error("Set SEED_PASSWORD in .env (min 10 characters) before seeding registered users.");
   }
   const passwordHash = await bcrypt.hash(password, 12);
-  const adminPasswordHash = await bcrypt.hash("Admin@123", 12);
+  const adminBootstrap = process.env.ADMIN_PASSWORD ?? process.env.DEMO_ADMIN_PASSWORD ?? "";
+  const adminPasswordHash = adminBootstrap
+    ? await bcrypt.hash(adminBootstrap, 12)
+    : passwordHash;
 
   for (const user of users) {
     const hash = user.email === "admin@gmail.com" ? adminPasswordHash : passwordHash;

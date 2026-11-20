@@ -14,6 +14,7 @@ type SignedSessionPayload = {
   role: string;
   exp: number;
   rememberMe: boolean;
+  mustChangePassword: boolean;
 };
 
 function cookieOptions(maxAge: number) {
@@ -27,7 +28,7 @@ function cookieOptions(maxAge: number) {
 }
 
 function signingSecret() {
-  return process.env.AUTH_SECRET?.trim() || process.env.DEMO_ADMIN_PASSWORD || "";
+  return process.env.AUTH_SECRET?.trim() || "";
 }
 
 function encodeSession(payload: SignedSessionPayload, secret: string) {
@@ -66,6 +67,7 @@ export async function issueSignedSession(user: SessionUser, rememberMe: boolean)
       username: user.username,
       role: user.role,
       rememberMe,
+      mustChangePassword: user.mustChangePassword,
       exp: Date.now() + ttl * 1000,
     },
     secret,
@@ -78,11 +80,12 @@ export async function createSession(userId: string, rememberMe: boolean, _ip: st
   await issueSignedSession(
     {
       id: userId,
-      name: "System Administrator",
-      email: process.env.DEMO_ADMIN_USER_ID?.trim() || "admin@cpos.local",
+      name: "Super Admin",
+      email: process.env.ADMIN_USER_ID?.trim() || process.env.DEMO_ADMIN_USER_ID?.trim() || "admin@cpos.local",
       username: "admin",
-      role: "SYSTEM_ADMINISTRATOR",
-      permissions: permissionsForRole("SYSTEM_ADMINISTRATOR"),
+      role: "MASTER_ADMIN",
+      permissions: permissionsForRole("MASTER_ADMIN"),
+      mustChangePassword: true,
     },
     rememberMe,
   );
@@ -119,6 +122,7 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
     username: payload.username,
     role: payload.role,
     permissions: permissionsForRole(payload.role),
+    mustChangePassword: Boolean(payload.mustChangePassword),
   };
 }
 

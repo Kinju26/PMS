@@ -1,5 +1,7 @@
 export const SESSION_COOKIE = "cpos.sid";
+export const CREDENTIAL_COOKIE = "cpos.cred";
 export const MFA_COOKIE = "cpos.mfa";
+export const MIN_NEW_PASSWORD_LENGTH = 10;
 
 export const SESSION_TTL_SECONDS = 60 * 60 * 8;
 export const REMEMBER_TTL_SECONDS = 60 * 60 * 24 * 30;

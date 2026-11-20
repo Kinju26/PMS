@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { WorkspaceShell } from "@/components/cpos/workspace-shell";
@@ -24,5 +25,9 @@ async function SignedInShell({ children }: { children: ReactNode }) {
   const session = await getCurrentSession();
   if (!session) redirect("/");
   if (!roleHasPermission(session.role, "access_workspace")) redirect("/home");
+  const pathname = (await headers()).get("x-pathname") ?? "";
+  if (session.mustChangePassword && pathname !== "/settings/security") {
+    redirect("/settings/security");
+  }
   return <WorkspaceShell session={session}>{children}</WorkspaceShell>;
 }

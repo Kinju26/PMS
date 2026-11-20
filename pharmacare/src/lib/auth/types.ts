@@ -8,6 +8,7 @@ export type SessionUser = {
   username: string;
   role: AuthRole;
   permissions: readonly Permission[];
+  mustChangePassword: boolean;
 };
 
 export type PublicAuthResponse = {

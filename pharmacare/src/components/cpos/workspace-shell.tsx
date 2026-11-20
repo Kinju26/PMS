@@ -437,6 +437,15 @@ function Frame({ children }: { children: React.ReactNode }) {
                           Regional Settings
                         </Link>
                       </DropdownMenu.Item>
+                      <DropdownMenu.Item asChild>
+                        <Link
+                          href="/settings/security"
+                          className="flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-ink outline-none hover:bg-[#F3F5F8] focus:bg-[#F3F5F8]"
+                        >
+                          <Settings className="h-3.5 w-3.5 text-muted" />
+                          Admin Security
+                        </Link>
+                      </DropdownMenu.Item>
                       <DropdownMenu.Item
                         onSelect={resetDemoData}
                         className="flex cursor-pointer items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-ink outline-none hover:bg-[#F3F5F8] focus:bg-[#F3F5F8]"
